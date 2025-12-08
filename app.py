@@ -406,3 +406,181 @@ st.sidebar.metric("F1-Score", f"{selected_metrics['f1']:.4f}")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**💡 Tip:** Use the tabs below to make predictions or explore model performance.")
+
+# ============================================================================
+# TABS PRINCIPALES
+# ============================================================================
+
+tab1, tab2 = st.tabs(["🔮 Make Prediction", "📊 Model Dashboard"])
+
+# ============================================================================
+# TAB 1: FORMULARIO DE INFERENCIA
+# ============================================================================
+
+with tab1:
+    st.header("🔮 Customer Churn Prediction")
+    st.markdown("Enter customer information to predict churn probability.")
+    st.markdown("---")
+
+    # Crear formulario en 3 columnas
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.subheader("👤 Customer Info")
+
+        # Campo calculado: Customer ID
+        st.text_input("Customer ID", value="PRED-001", disabled=True,
+                      help="Auto-generated ID for prediction")
+
+        gender = st.selectbox("Gender", ["Female", "Male"])
+        senior_citizen = st.selectbox("Senior Citizen", [0, 1], format_func=lambda x: "No" if x == 0 else "Yes")
+        partner = st.selectbox("Partner", ["No", "Yes"])
+        dependents = st.selectbox("Dependents", ["No", "Yes"])
+
+        st.subheader("📞 Phone Services")
+        phone_service = st.selectbox("Phone Service", ["No", "Yes"])
+        multiple_lines = st.selectbox("Multiple Lines", ["No", "Yes", "No phone service"])
+
+    with col2:
+        st.subheader("🌐 Internet Services")
+        internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
+        online_security = st.selectbox("Online Security", ["No", "Yes", "No internet service"])
+        online_backup = st.selectbox("Online Backup", ["No", "Yes", "No internet service"])
+        device_protection = st.selectbox("Device Protection", ["No", "Yes", "No internet service"])
+        tech_support = st.selectbox("Tech Support", ["No", "Yes", "No internet service"])
+        streaming_tv = st.selectbox("Streaming TV", ["No", "Yes", "No internet service"])
+        streaming_movies = st.selectbox("Streaming Movies", ["No", "Yes", "No internet service"])
+
+    with col3:
+        st.subheader("💳 Account Info")
+        tenure = st.number_input("Tenure (months)", min_value=0, max_value=72, value=12, step=1)
+        contract = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
+        paperless_billing = st.selectbox("Paperless Billing", ["No", "Yes"])
+        payment_method = st.selectbox("Payment Method",
+                                      ["Electronic check", "Mailed check",
+                                       "Bank transfer (automatic)", "Credit card (automatic)"])
+        monthly_charges = st.number_input("Monthly Charges ($)", min_value=0.0, max_value=150.0,
+                                          value=70.0, step=0.1)
+
+        # Campo calculado: Total Charges
+        total_charges_calculated = monthly_charges * tenure
+        st.number_input("Total Charges ($)", value=float(total_charges_calculated),
+                        disabled=True, help="Auto-calculated: Monthly Charges × Tenure")
+
+    st.markdown("---")
+
+    # Botón de predicción
+    if st.button("🚀 Predict Churn", type="primary", width='stretch'):
+
+        # Crear DataFrame con los datos ingresados
+        input_data = pd.DataFrame({
+            'customerID': ['PRED-001'],
+            'gender': [gender],
+            'SeniorCitizen': [senior_citizen],
+            'Partner': [partner],
+            'Dependents': [dependents],
+            'tenure': [tenure],
+            'PhoneService': [phone_service],
+            'MultipleLines': [multiple_lines],
+            'InternetService': [internet_service],
+            'OnlineSecurity': [online_security],
+            'OnlineBackup': [online_backup],
+            'DeviceProtection': [device_protection],
+            'TechSupport': [tech_support],
+            'StreamingTV': [streaming_tv],
+            'StreamingMovies': [streaming_movies],
+            'Contract': [contract],
+            'PaperlessBilling': [paperless_billing],
+            'PaymentMethod': [payment_method],
+            'MonthlyCharges': [monthly_charges],
+            'TotalCharges': [str(total_charges_calculated)]  # string (object)
+        })
+
+        try:
+            # Preprocesar datos
+            with st.spinner("Processing data..."):
+                input_prep = preprocessing_pipeline.transform(input_data)
+
+            # Filtrar features según versión seleccionada
+            if "Selected" in model_version:
+                input_prep = input_prep[feature_config['selected_features']]
+
+            # Realizar predicción
+            with st.spinner("Making prediction..."):
+                prediction = selected_model.predict(input_prep)[0]
+                prediction_proba = selected_model.predict_proba(input_prep)[0]
+
+            # Mostrar resultados
+            st.markdown("---")
+            st.subheader("🎯 Prediction Results")
+
+            # Crear 2 columnas para los resultados
+            result_col1, result_col2 = st.columns(2)
+
+            with result_col1:
+                if prediction == "Yes":
+                    st.error("### ⚠️ CHURN RISK: HIGH")
+                    st.markdown("**Prediction:** Customer is likely to churn")
+                else:
+                    st.success("### ✅ CHURN RISK: LOW")
+                    st.markdown("**Prediction:** Customer is likely to stay")
+
+            with result_col2:
+                churn_prob = prediction_proba[1] if hasattr(prediction_proba, '__len__') else prediction_proba
+                st.metric("Churn Probability", f"{churn_prob * 100:.2f}%")
+                st.metric("Retention Probability", f"{(1 - churn_prob) * 100:.2f}%")
+
+            # Mostrar probabilidades como barra de progreso
+            st.markdown("---")
+            st.markdown("**Probability Distribution:**")
+            st.progress(float(churn_prob), text=f"Churn: {churn_prob * 100:.1f}%")
+
+            # Información adicional
+            with st.expander("📋 View Input Data"):
+                # Crear tabla de visualización formateada (TODO como strings)
+                display_dict = {
+                    'Feature': [],
+                    'Value': []
+                }
+
+                display_dict['Feature'].extend(['Gender', 'Senior Citizen', 'Partner', 'Dependents',
+                                                'Tenure (months)', 'Phone Service', 'Multiple Lines',
+                                                'Internet Service', 'Online Security', 'Online Backup',
+                                                'Device Protection', 'Tech Support', 'Streaming TV',
+                                                'Streaming Movies', 'Contract', 'Paperless Billing',
+                                                'Payment Method', 'Monthly Charges', 'Total Charges (calculated)'])
+
+                display_dict['Value'].extend([
+                    str(gender),
+                    'Yes' if senior_citizen == 1 else 'No',
+                    str(partner),
+                    str(dependents),
+                    str(tenure),
+                    str(phone_service),
+                    str(multiple_lines),
+                    str(internet_service),
+                    str(online_security),
+                    str(online_backup),
+                    str(device_protection),
+                    str(tech_support),
+                    str(streaming_tv),
+                    str(streaming_movies),
+                    str(contract),
+                    str(paperless_billing),
+                    str(payment_method),
+                    f"${monthly_charges:.2f}",
+                    f"${total_charges_calculated:.2f}"
+                ])
+
+                display_df = pd.DataFrame(display_dict)
+                # Asegurar que ambas columnas sean string
+                display_df['Feature'] = display_df['Feature'].astype(str)
+                display_df['Value'] = display_df['Value'].astype(str)
+
+                st.dataframe(display_df, width='stretch', hide_index=True)
+
+
+
+        except Exception as e:
+            st.error(f"❌ Error during prediction: {str(e)}")
+            st.exception(e)
