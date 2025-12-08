@@ -342,3 +342,67 @@ try:
 except Exception as e:
     st.error(f"❌ Error loading data: {str(e)}")
     st.stop()
+
+
+# ============================================================================
+# SIDEBAR - SELECTORES
+# ============================================================================
+
+st.sidebar.title("🎯 Model Selection")
+st.sidebar.markdown("---")
+
+# Selector de tipo de modelo
+model_type = st.sidebar.selectbox(
+    "Select Model Type:",
+    options=["Logistic Regression", "Stacking Classifier", "Voting Classifier (Soft)"],
+    index=0
+)
+
+# Selector de versión (All Features vs Selected Features)
+model_version = st.sidebar.selectbox(
+    "Select Feature Version:",
+    options=["All Features (22)", "Selected Features (12) - Optimized"],
+    index=0
+)
+
+st.sidebar.markdown("---")
+
+# Mapeo de selecciones a nombres de archivos
+model_mapping = {
+    ("Logistic Regression", "All Features (22)"): "lr_all_features",
+    ("Logistic Regression", "Selected Features (12) - Optimized"): "lr_selected_optimized",
+    ("Stacking Classifier", "All Features (22)"): "stacking_all_features",
+    ("Stacking Classifier", "Selected Features (12) - Optimized"): "stacking_selected_optimized",
+    ("Voting Classifier (Soft)", "All Features (22)"): "voting_all_features",
+    ("Voting Classifier (Soft)", "Selected Features (12) - Optimized"): "voting_selected_optimized",
+}
+
+metrics_mapping = {
+    ("Logistic Regression", "All Features (22)"): "lr_all",
+    ("Logistic Regression", "Selected Features (12) - Optimized"): "lr_opt",
+    ("Stacking Classifier", "All Features (22)"): "stacking_all",
+    ("Stacking Classifier", "Selected Features (12) - Optimized"): "stacking_opt",
+    ("Voting Classifier (Soft)", "All Features (22)"): "voting_all",
+    ("Voting Classifier (Soft)", "Selected Features (12) - Optimized"): "voting_opt",
+}
+
+# Obtener modelo y métricas seleccionadas
+selected_model_key = model_mapping[(model_type, model_version)]
+selected_metrics_key = metrics_mapping[(model_type, model_version)]
+
+selected_model = models_dict[selected_model_key]
+selected_metrics = metrics_dict[selected_metrics_key]
+
+# Mostrar información del modelo seleccionado en sidebar
+st.sidebar.success(f"✅ Model loaded: **{model_type}**")
+st.sidebar.info(f"📊 Version: **{model_version}**")
+
+# Mostrar métricas del modelo seleccionado
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📈 Model Performance")
+st.sidebar.metric("Accuracy", f"{selected_metrics['acc']:.4f}")
+st.sidebar.metric("AUC", f"{selected_metrics['auc']:.4f}")
+st.sidebar.metric("F1-Score", f"{selected_metrics['f1']:.4f}")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**💡 Tip:** Use the tabs below to make predictions or explore model performance.")
