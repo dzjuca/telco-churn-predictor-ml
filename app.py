@@ -584,3 +584,176 @@ with tab1:
         except Exception as e:
             st.error(f"❌ Error during prediction: {str(e)}")
             st.exception(e)
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# SECCIÓN 5: Dashboard - Comparación de Métricas y Confusion Matrix
+# ----------------------------------------------------------------------------------------------------------------------
+
+# ============================================================================
+# TAB 2: DASHBOARD INTERACTIVO
+# ============================================================================
+
+with tab2:
+    st.header("📊 Model Performance Dashboard")
+    st.markdown("Explore model metrics, confusion matrices, feature importance, and dataset insights.")
+    st.markdown("---")
+
+    # ========================================================================
+    # SECCIÓN 1: COMPARACIÓN DE MÉTRICAS
+    # ========================================================================
+
+    st.subheader("📈 Performance Metrics Comparison")
+    st.markdown(f"**Selected Model:** {model_type}")
+
+    # Obtener métricas de ambas versiones del modelo seleccionado
+    if "Logistic" in model_type:
+        metrics_all = metrics_dict['lr_all']
+        metrics_opt = metrics_dict['lr_opt']
+        model_name_short = "LR"
+    elif "Stacking" in model_type:
+        metrics_all = metrics_dict['stacking_all']
+        metrics_opt = metrics_dict['stacking_opt']
+        model_name_short = "Stacking"
+    else:  # Voting
+        metrics_all = metrics_dict['voting_all']
+        metrics_opt = metrics_dict['voting_opt']
+        model_name_short = "Voting"
+
+    # Crear DataFrame para comparación
+    comparison_df = pd.DataFrame({
+        'Metric': ['Accuracy', 'AUC', 'F1-Score'],
+        'All Features (22)': [
+            metrics_all['acc'],
+            metrics_all['auc'],
+            metrics_all['f1']
+        ],
+        'Selected Features (12)': [
+            metrics_opt['acc'],
+            metrics_opt['auc'],
+            metrics_opt['f1']
+        ]
+    })
+
+    # Crear gráfico de barras comparativo
+    fig_comparison = go.Figure()
+
+    fig_comparison.add_trace(go.Bar(
+        name='All Features (22)',
+        x=comparison_df['Metric'],
+        y=comparison_df['All Features (22)'],
+        marker_color='#636EFA',
+        text=[f"{val:.4f}" for val in comparison_df['All Features (22)']],
+        textposition='auto',
+    ))
+
+    fig_comparison.add_trace(go.Bar(
+        name='Selected Features (12)',
+        x=comparison_df['Metric'],
+        y=comparison_df['Selected Features (12)'],
+        marker_color='#EF553B',
+        text=[f"{val:.4f}" for val in comparison_df['Selected Features (12)']],
+        textposition='auto',
+    ))
+
+    fig_comparison.update_layout(
+        title=f"{model_name_short}: All Features vs Selected Features",
+        xaxis_title="Metric",
+        yaxis_title="Score",
+        barmode='group',
+        yaxis=dict(range=[0, 1.05]),
+        height=400,
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    st.plotly_chart(fig_comparison, width='stretch')
+
+    # Mostrar tabla comparativa
+    with st.expander("📋 View Detailed Metrics Table"):
+        # Formatear tabla
+        comparison_display = comparison_df.copy()
+        comparison_display['All Features (22)'] = comparison_display['All Features (22)'].apply(lambda x: f"{x:.4f}")
+        comparison_display['Selected Features (12)'] = comparison_display['Selected Features (12)'].apply(
+            lambda x: f"{x:.4f}")
+        st.dataframe(comparison_display, width='stretch', hide_index=True)
+
+    st.markdown("---")
+
+    # ========================================================================
+    # SECCIÓN 2: CONFUSION MATRICES
+    # ========================================================================
+
+    st.subheader("🔥 Confusion Matrices")
+
+    # Crear dos columnas para las matrices
+    cm_col1, cm_col2 = st.columns(2)
+
+    with cm_col1:
+        st.markdown("**All Features (22)**")
+        cm_all = metrics_all['cm']
+
+        # Crear heatmap con plotly
+        fig_cm_all = go.Figure(data=go.Heatmap(
+            z=cm_all,
+            x=['Predicted: No', 'Predicted: Yes'],
+            y=['Actual: No', 'Actual: Yes'],
+            text=cm_all,
+            texttemplate='%{text}',
+            textfont={"size": 16},
+            colorscale='Blues',
+            showscale=False
+        ))
+
+        fig_cm_all.update_layout(
+            title=f"{model_name_short} - All Features",
+            xaxis_title="Predicted",
+            yaxis_title="Actual",
+            height=350,
+            yaxis=dict(autorange='reversed')
+        )
+
+        st.plotly_chart(fig_cm_all, width='stretch')
+
+        # Métricas derivadas
+        tn, fp, fn, tp = cm_all.ravel()
+        st.metric("True Negatives (TN)", tn)
+        st.metric("True Positives (TP)", tp)
+        st.metric("False Positives (FP)", fp)
+        st.metric("False Negatives (FN)", fn)
+
+    with cm_col2:
+        st.markdown("**Selected Features (12)**")
+        cm_opt = metrics_opt['cm']
+
+        # Crear heatmap con plotly
+        fig_cm_opt = go.Figure(data=go.Heatmap(
+            z=cm_opt,
+            x=['Predicted: No', 'Predicted: Yes'],
+            y=['Actual: No', 'Actual: Yes'],
+            text=cm_opt,
+            texttemplate='%{text}',
+            textfont={"size": 16},
+            colorscale='Reds',
+            showscale=False
+        ))
+
+        fig_cm_opt.update_layout(
+            title=f"{model_name_short} - Selected Features",
+            xaxis_title="Predicted",
+            yaxis_title="Actual",
+            height=350,
+            yaxis=dict(autorange='reversed')
+        )
+
+        st.plotly_chart(fig_cm_opt, width='stretch')
+
+        # Métricas derivadas
+        tn, fp, fn, tp = cm_opt.ravel()
+        st.metric("True Negatives (TN)", tn)
+        st.metric("True Positives (TP)", tp)
+        st.metric("False Positives (FP)", fp)
+        st.metric("False Negatives (FN)", fn)
+
+    st.markdown("---")
