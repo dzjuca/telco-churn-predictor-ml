@@ -757,3 +757,247 @@ with tab2:
         st.metric("False Negatives (FN)", fn)
 
     st.markdown("---")
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# SECCIÓN 6: Dashboard - Feature Importance y EDA
+# ----------------------------------------------------------------------------------------------------------------------
+
+    # ========================================================================
+    # SECCIÓN 3: FEATURE IMPORTANCE
+    # ========================================================================
+
+    st.subheader("⭐ Feature Importance")
+    st.markdown("**Based on Random Forest Feature Selection**")
+    st.markdown("These are the feature importances used for selecting the top 12 features.")
+
+    # Cargar feature importances (son las mismas para todos los modelos)
+    if 'feature_importances' in feature_importance_data:
+        fi_full = feature_importance_data['feature_importances'].copy()
+
+        # Obtener features según la versión seleccionada
+        if "Selected" in model_version:
+            # Mostrar solo las 12 features seleccionadas
+            selected_features = feature_config['selected_features']
+            fi_df = fi_full[fi_full['Feature'].isin(selected_features)].copy()
+            fi_df = fi_df.sort_values('Importance', ascending=True)
+            title_suffix = "Selected Features (12)"
+        else:
+            # Mostrar top 15 de todas las features
+            fi_df = fi_full.nlargest(15, 'Importance').sort_values('Importance', ascending=True)
+            title_suffix = "All Features (Top 15)"
+
+        # Crear gráfico de barras horizontal
+        fig_fi = go.Figure(go.Bar(
+            x=fi_df['Importance'],
+            y=fi_df['Feature'],
+            orientation='h',
+            marker_color='#00CC96',
+            text=[f"{val:.4f}" for val in fi_df['Importance']],
+            textposition='auto',
+        ))
+
+        fig_fi.update_layout(
+            title=f"Feature Importance - {title_suffix}",
+            xaxis_title="Importance Score",
+            yaxis_title="Feature",
+            height=500,
+            showlegend=False
+        )
+
+        st.plotly_chart(fig_fi, width='stretch')
+
+        # Tabla completa en expander
+        with st.expander("📋 View All Feature Importances"):
+            fi_table_full = fi_full.sort_values('Importance', ascending=False).copy()
+            fi_table_full['Importance'] = fi_table_full['Importance'].apply(lambda x: f"{x:.6f}")
+            fi_table_full['Cumulative_Importance'] = fi_table_full['Cumulative_Importance'].apply(lambda x: f"{x:.4f}")
+            st.dataframe(fi_table_full, width='stretch', hide_index=True)
+
+            st.info(
+                "💡 **Note:** These importances were calculated using a Random Forest model and were used to select the top 12 features for the optimized models.")
+    else:
+        st.error("❌ Feature importance data not found in the loaded file.")
+
+    st.markdown("---")
+
+
+    # ========================================================================
+    # SECCIÓN 4: EXPLORATORY DATA ANALYSIS (EDA)
+    # ========================================================================
+
+    st.subheader("📈 Dataset Exploration")
+
+    # Cargar datos preparados
+    X_train = prepared_data['X_train']
+    y_train = prepared_data['y_train']
+
+    # Recrear dataset completo para EDA
+    df_eda = X_train.copy()
+    df_eda['Churn'] = y_train
+
+    # Sub-sección 1: Distribución de Churn
+    st.markdown("#### 🎯 Churn Distribution")
+
+    eda_col1, eda_col2 = st.columns([2, 1])
+
+    with eda_col1:
+        # Gráfico de pie
+        churn_counts = df_eda['Churn'].value_counts()
+
+        fig_churn = go.Figure(data=[go.Pie(
+            labels=['No Churn', 'Churn'],
+            values=[churn_counts.get('No', 0), churn_counts.get('Yes', 0)],
+            marker_colors=['#00CC96', '#EF553B'],
+            hole=0.4,
+            textinfo='label+percent',
+            textfont_size=14
+        )])
+
+        fig_churn.update_layout(
+            title="Target Variable Distribution",
+            height=350,
+            showlegend=True
+        )
+
+        st.plotly_chart(fig_churn, width='stretch')
+
+    with eda_col2:
+        st.markdown("**Class Distribution:**")
+        st.metric("Total Customers", len(df_eda))
+        st.metric("No Churn", churn_counts.get('No', 0))
+        st.metric("Churn", churn_counts.get('Yes', 0))
+
+        churn_rate = (churn_counts.get('Yes', 0) / len(df_eda)) * 100
+        st.metric("Churn Rate", f"{churn_rate:.2f}%")
+
+    st.markdown("---")
+
+    # Sub-sección 2: Distribuciones de Variables Numéricas
+    st.markdown("#### 📊 Numerical Features Distribution")
+
+    # Seleccionar features numéricas
+    numeric_features = ['tenure', 'MonthlyCharges']
+
+    fig_hist = go.Figure()
+
+    for feature in numeric_features:
+        if feature in df_eda.columns:
+            fig_hist.add_trace(go.Histogram(
+                x=df_eda[feature],
+                name=feature,
+                opacity=0.7,
+                nbinsx=30
+            ))
+
+    fig_hist.update_layout(
+        title="Distribution of Numerical Features",
+        xaxis_title="Value",
+        yaxis_title="Frequency",
+        barmode='overlay',
+        height=400,
+        showlegend=True
+    )
+
+    st.plotly_chart(fig_hist, width='stretch')
+
+    st.markdown("---")
+
+    # Sub-sección 3: Churn por características clave
+    st.markdown("#### 🔍 Churn Analysis by Key Features")
+
+    analysis_col1, analysis_col2 = st.columns(2)
+
+    with analysis_col1:
+        # Churn por Contract
+        if 'Contract' in df_eda.columns:
+            churn_by_contract = pd.crosstab(df_eda['Contract'], df_eda['Churn'], normalize='index') * 100
+
+            fig_contract = go.Figure()
+
+            for churn_val in churn_by_contract.columns:
+                fig_contract.add_trace(go.Bar(
+                    name=f'Churn: {churn_val}',
+                    x=churn_by_contract.index,
+                    y=churn_by_contract[churn_val],
+                    text=[f"{val:.1f}%" for val in churn_by_contract[churn_val]],
+                    textposition='auto',
+                ))
+
+            fig_contract.update_layout(
+                title="Churn Rate by Contract Type",
+                xaxis_title="Contract Type",
+                yaxis_title="Percentage (%)",
+                barmode='stack',
+                height=350
+            )
+
+            st.plotly_chart(fig_contract, width='stretch')
+
+    with analysis_col2:
+        # Churn por Internet Service
+        if 'InternetService' in df_eda.columns:
+            churn_by_internet = pd.crosstab(df_eda['InternetService'], df_eda['Churn'], normalize='index') * 100
+
+            fig_internet = go.Figure()
+
+            for churn_val in churn_by_internet.columns:
+                fig_internet.add_trace(go.Bar(
+                    name=f'Churn: {churn_val}',
+                    x=churn_by_internet.index,
+                    y=churn_by_internet[churn_val],
+                    text=[f"{val:.1f}%" for val in churn_by_internet[churn_val]],
+                    textposition='auto',
+                ))
+
+            fig_internet.update_layout(
+                title="Churn Rate by Internet Service",
+                xaxis_title="Internet Service Type",
+                yaxis_title="Percentage (%)",
+                barmode='stack',
+                height=350
+            )
+
+            st.plotly_chart(fig_internet, width='stretch')
+
+    st.markdown("---")
+
+    # Sub-sección 4: Correlación entre variables numéricas y Churn
+    st.markdown("#### 🔗 Correlation Analysis")
+
+    # Convertir Churn a numérico para correlación
+    df_corr = df_eda.copy()
+    df_corr['Churn_Numeric'] = (df_corr['Churn'] == 'Yes').astype(int)
+
+    # Seleccionar solo columnas numéricas
+    numeric_cols = df_corr.select_dtypes(include=[np.number]).columns.tolist()
+
+    if len(numeric_cols) > 1:
+        # Calcular matriz de correlación
+        corr_matrix = df_corr[numeric_cols].corr()
+
+        # Crear heatmap
+        fig_corr = go.Figure(data=go.Heatmap(
+            z=corr_matrix.values,
+            x=corr_matrix.columns,
+            y=corr_matrix.columns,
+            colorscale='RdBu',
+            zmid=0,
+            text=np.round(corr_matrix.values, 2),
+            texttemplate='%{text}',
+            textfont={"size": 10},
+            colorbar=dict(title="Correlation")
+        ))
+
+        fig_corr.update_layout(
+            title="Correlation Matrix - Numerical Features",
+            height=500,
+            xaxis={'side': 'bottom'},
+        )
+
+        st.plotly_chart(fig_corr, width='stretch')
+    else:
+        st.info("Not enough numerical features for correlation analysis.")
+
+    st.markdown("---")
+    st.success("✅ Dashboard complete! Use the sidebar to explore different models and versions.")
