@@ -7,3 +7,5 @@ seaborn==0.13.2
 plotly==6.5.0
 imbalanced-learn==0.14.0
 joblib==1.5.2
+streamlit-antd-components==0.3.2
+streamlit-extras==0.7.8
