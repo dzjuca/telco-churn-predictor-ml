@@ -723,6 +723,127 @@ elif selected_tab == 'Model Dashboard':
             st.error("❌ Feature importance data not found in the loaded file.")
 
         st.markdown("---")
+#         --------------------------------------------------------------------------------------------------------------
+        # ========================================================================
+        # COMPARACIÓN ENTRE LOS 3 MODELOS (DINÁMICO)
+        # ========================================================================
+
+        st.subheader(":material/leaderboard: Performance Comparison Across All Models")
+        # st.markdown(f"**Comparing models using:** {model_version}")
+
+        # Determinar qué métricas usar según la versión seleccionada
+        if "Selected" in model_version:
+            # Versión Selected Features
+            lr_metrics = metrics_dict['lr_opt']
+            stacking_metrics = metrics_dict['stacking_opt']
+            voting_metrics = metrics_dict['voting_opt']
+        else:
+            # Versión All Features
+            lr_metrics = metrics_dict['lr_all']
+            stacking_metrics = metrics_dict['stacking_all']
+            voting_metrics = metrics_dict['voting_all']
+
+        # Crear gráfico de barras agrupadas (métricas en X, modelos por color)
+        fig_models_comparison = go.Figure()
+
+        metrics_names = ['Accuracy', 'AUC', 'F1-Score']
+
+        # Logistic Regression (Verde)
+        fig_models_comparison.add_trace(go.Bar(
+            name='Logistic Regression',
+            x=metrics_names,
+            y=[lr_metrics['acc'], lr_metrics['auc'], lr_metrics['f1']],
+            marker_color='#2ECC71',
+            text=[f"{lr_metrics['acc']:.4f}", f"{lr_metrics['auc']:.4f}", f"{lr_metrics['f1']:.4f}"],
+            textposition='auto',
+            textfont=dict(size=16)
+        ))
+
+        # Stacking Classifier (Azul)
+        fig_models_comparison.add_trace(go.Bar(
+            name='Stacking Classifier',
+            x=metrics_names,
+            y=[stacking_metrics['acc'], stacking_metrics['auc'], stacking_metrics['f1']],
+            marker_color='#3498DB',
+            text=[f"{stacking_metrics['acc']:.4f}", f"{stacking_metrics['auc']:.4f}", f"{stacking_metrics['f1']:.4f}"],
+            textposition='auto',
+            textfont=dict(size=16)
+        ))
+
+        # Voting Classifier (Morado)
+        fig_models_comparison.add_trace(go.Bar(
+            name='Voting Classifier',
+            x=metrics_names,
+            y=[voting_metrics['acc'], voting_metrics['auc'], voting_metrics['f1']],
+            marker_color='#9B59B6',
+            text=[f"{voting_metrics['acc']:.4f}", f"{voting_metrics['auc']:.4f}", f"{voting_metrics['f1']:.4f}"],
+            textposition='auto',
+            textfont=dict(size=16)
+        ))
+
+        fig_models_comparison.update_layout(
+            title=dict(
+                text=f"Model Performance Comparison - {model_version}",
+                font=dict(size=20)
+            ),
+            xaxis=dict(
+                title=dict(text="Metric", font=dict(size=18)),
+                tickfont=dict(size=16)
+            ),
+            yaxis=dict(
+                title=dict(text="Score", font=dict(size=18)),
+                tickfont=dict(size=16),
+                range=[0, 1.05]
+            ),
+            barmode='group',
+            height=500,
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                font=dict(size=16)
+            )
+        )
+
+        st.plotly_chart(fig_models_comparison, width='stretch')
+
+        # Tabla comparativa
+        with st.expander(":material/table_view: View Detailed Comparison Table"):
+            comparison_data = {
+                'Model': ['Logistic Regression', 'Stacking Classifier', 'Voting Classifier'],
+                'Accuracy': [
+                    f"{lr_metrics['acc']:.4f}",
+                    f"{stacking_metrics['acc']:.4f}",
+                    f"{voting_metrics['acc']:.4f}"
+                ],
+                'AUC': [
+                    f"{lr_metrics['auc']:.4f}",
+                    f"{stacking_metrics['auc']:.4f}",
+                    f"{voting_metrics['auc']:.4f}"
+                ],
+                'F1-Score': [
+                    f"{lr_metrics['f1']:.4f}",
+                    f"{stacking_metrics['f1']:.4f}",
+                    f"{voting_metrics['f1']:.4f}"
+                ]
+            }
+
+            df_comparison_display = pd.DataFrame(comparison_data)
+            st.dataframe(df_comparison_display, width='stretch', hide_index=True)
+
+            # Identificar el mejor modelo por AUC
+            auc_values = [lr_metrics['auc'], stacking_metrics['auc'], voting_metrics['auc']]
+            best_model_idx = auc_values.index(max(auc_values))
+            best_model_name = comparison_data['Model'][best_model_idx]
+            best_auc = max(auc_values)
+
+            st.success(f":material/looks_one: **Best Model (by AUC):** {best_model_name} with AUC = {best_auc:.4f}")
+
+        st.markdown("---")
+# ----------------------------------------------------------------------------------------------------------------------
 
 
 
